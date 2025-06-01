@@ -1,0 +1,56 @@
+# Maintainer: Yakov Till <yakov.till at gmail dot com>
+# Contributor: devome <evinedeng@hotmail.com>
+_pkgname="n8n"
+pkgname="${_pkgname}-git"
+pkgver=1.94.1
+pkgrel=1
+pkgdesc="Free and source-available fair-code licensed workflow automation tool. Easily automate tasks across different services."
+arch=('i686' 'x86_64' 'arm' 'armv7h' 'armv6h' 'aarch64')
+url="https://n8n.io"
+license=("custom:Sustainable Use License")
+backup=("etc/default/${_pkgname}")
+depends=("nodejs>=18.17.0")
+conflicts=("nodejs>=23")
+makedepends=("npm" "jq" "curl" "turbo" "typescript" "lefthook" "pnpm" "nodejs-vite" "nodejs-vue-tsc" "nodejs-rimraf" "nodejs-tsup" "nodejs-cross-env")
+source=("${pkgname}::git+https://github.com/n8n-io/n8n.git#tag=n8n@${pkgver}"
+  "${_pkgname}.env"
+  "${_pkgname}.service"
+  "${_pkgname}.sysusers"
+  "${_pkgname}.tmpfiles"
+  "${_pkgname}.user.service"
+  "start.sh")
+sha256sums=('b5f639194128e5fc9e30a71ebfb1179d0cf782e40322b17a577cdd903c713911'
+            '922497d55ae73a49de2b606587374c8e47fdde276808f00648aa8ada8b506ab3'
+            '2ceca78ede42bd19dd2620a72d37e4b63d406a240427e7074a88e0ebfbcd90fa'
+            '6139ae944272cdc50715fd82a3c062ebf1b7fd73f7f789cba0d27f5a0436c688'
+            'faa4145ec8723700c5f8f75ae2dd3d78c931597b67e200050b55fec9d73c3f06'
+            '79d2898e9bdde51ed7e206275bd3fec577154b494992b8ea027bef1738f76c1a'
+            '66e7163712b62fdbfe4d3f73c9e3e0b3e1b1b00ad068a4b045d35eaf9590e3b2')
+
+pkgver() {
+  # Fetch latest version from npm registry
+  curl -s "https://registry.npmjs.org/${_pkgname}" | jq -r '.["dist-tags"].latest'
+}
+
+build(){
+  cd "${srcdir}/${pkgname}-crack";
+  pnpm install --frozen-lockfile;
+  pnpm build;
+}
+
+package() {
+  install -Dm644 "${_pkgname}.env"          "${pkgdir}/etc/default/${_pkgname}"
+  install -Dm644 "${_pkgname}.service"      "${pkgdir}/usr/lib/systemd/system/${_pkgname}.service"
+  install -Dm644 "${_pkgname}.sysusers"     "${pkgdir}/usr/lib/sysusers.d/${_pkgname}.conf"
+  install -Dm644 "${_pkgname}.tmpfiles"     "${pkgdir}/usr/lib/tmpfiles.d/${_pkgname}.conf"
+  install -Dm644 "${_pkgname}.user.service" "${pkgdir}/usr/lib/systemd/user/${_pkgname}.service"
+
+  install -dm755 "${pkgdir}/usr/share/"{licenses,doc}"/${pkgname}"
+  ln -s "/usr/lib/node_modules/${_pkgname}/LICENSE.md" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+  ln -s "/usr/lib/node_modules/${_pkgname}/README.md"  "${pkgdir}/usr/share/doc/${pkgname}/README.md"
+  cd "${pkgdir}"
+  if [ -f "${pkgdir}/usr/bin/n8n" ];
+  then
+    install -Dm777 "${srcdir}/start.sh" "${pkgdir}/usr/bin/n8n";
+  fi
+}
